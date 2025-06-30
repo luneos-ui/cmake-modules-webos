@@ -68,7 +68,7 @@
 
 # TODO: Using PARENT_SCOPE, see if any macros can be turned into functions
 
-cmake_minimum_required(VERSION 2.8.7)
+cmake_minimum_required(VERSION 3.10.0)
 
 include(CMakeParseArguments)
 
@@ -156,10 +156,6 @@ endmacro()
 # Unfortunately, CMake doesn't like having cmake_minimum_required() in a macro, so we can't make that part of the contract :-( .
 # Must be a macro as it can set the global variables
 macro(webos_modules_init major minor patch)
-	if(${CMAKE_BINARY_DIR} STREQUAL ${CMAKE_SOURCE_DIR})
-		message(FATAL_ERROR "Builds must be done \"out-of-source\".")
-	endif()
-
 	if(DEFINED _WEBOS_MODULES_CONTRACT_VERSION)
 		message(FATAL_ERROR "webos_modules_init(): Previously invoked")
 	endif()
@@ -760,27 +756,25 @@ function(webos_build_library)
 	# If <target-name> begins with "lib", then the library name would begin with "liblib" unless its fixed, which is done here.
 	# NB. Can't just get the LIBRARY_OUTPUT_NAME properity, because it doesn't exist unless it's been assigned to (it doesn't
 	#     have a default value).
-	get_target_property(location ${webos_library_TARGET} LOCATION)
-	string(REGEX MATCH "[^/]+$" libname ${location})
-	string(SUBSTRING ${libname} 0 6 libnameprefix)
-	if(${libnameprefix} STREQUAL liblib)
-		# ASSERT(PREFIX is "lib")
+	string(SUBSTRING ${webos_library_TARGET} 0 3 prefix)
+	if(prefix STREQUAL "lib")
 		set_target_properties(${webos_library_TARGET} PROPERTIES PREFIX "")
 	endif()
 
+	get_target_property(target_type ${webos_library_TARGET} TYPE)
 	# Why can't install() figure this out without needing to be told?
 	if(UNIX)
-		if(${location} MATCHES "\\.a$")
+		if(target_type STREQUAL "STATIC_LIBRARY")
 			set(kind ARCHIVE)
 			# Allow static libraries to be linked into shared ones. Without -fPIC, you can get this errors such as:
 			#   libXXX.a(YYY.o): relocation R_ARM_MOVW_ABS_NC against `a local symbol' can not be used when making a
 			#                    shared object; recompile with -fPIC
 			# Technically, it's not needed for x86, but supplying it does no harm.
 			set_target_properties(${webos_library_TARGET} PROPERTIES COMPILE_FLAGS -fPIC)
-		elseif(${location} MATCHES "\\.so$")
+		elseif(target_type STREQUAL "SHARED_LIBRARY")
 			set(kind LIBRARY)
 		else()
-			message(FATAL_ERROR "webos_build_library(): Unrecognized library suffix: ${location}")
+			message(FATAL_ERROR "webos_build_library(): Unrecognized library type: ${target_type}")
 		endif()
 	else()
 		message(FATAL_ERROR "INTERNAL ERROR: webos_build_library() needs work for non-UNIX builds.")

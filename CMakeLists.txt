@@ -22,7 +22,7 @@
 
 # Commented-out lines are used for testing
 
-cmake_minimum_required(VERSION 2.8.7)
+cmake_minimum_required(VERSION 3.10.0)
 
 project(cmake-modules-webos NONE)
 
